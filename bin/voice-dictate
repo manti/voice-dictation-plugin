@@ -1,0 +1,88 @@
+#!/usr/bin/env bash
+# voice-dictate: record voice, transcribe with whisper.cpp, optionally copy to clipboard.
+#
+# Modes:
+#   (default)        prints transcript to stdout AND copies it to the system clipboard
+#   --no-clipboard   prints transcript to stdout only (used by the slash command path)
+#   --check          dependency check; prints OK or a diagnostic and exits
+#
+# Env:
+#   VOICE_DICTATE_MODEL        path to ggml whisper model (.bin)
+#   VOICE_DICTATE_LANGUAGE     ISO language code (default 'en')
+#   VOICE_DICTATE_MAX_SECONDS  hard cap on recording (default 120)
+#   VOICE_DICTATE_DEBUG=1      verbose whisper output on failure
+
+set -euo pipefail
+
+# Resolve plugin root: prefer $CLAUDE_PLUGIN_ROOT (set when invoked via the plugin),
+# otherwise derive from this script's location (when run from the user's shell).
+if [[ -n "${CLAUDE_PLUGIN_ROOT:-}" && -d "$CLAUDE_PLUGIN_ROOT/lib" ]]; then
+  ROOT="$CLAUDE_PLUGIN_ROOT"
+else
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+fi
+
+LIB="$ROOT/lib"
+
+USE_CLIPBOARD=1
+CHECK_ONLY=0
+for arg in "$@"; do
+  case "$arg" in
+    --no-clipboard) USE_CLIPBOARD=0 ;;
+    --check)        CHECK_ONLY=1 ;;
+    -h|--help)
+      sed -n '2,11p' "$0" | sed 's/^# \{0,1\}//'
+      exit 0 ;;
+    *)
+      echo "error: unknown argument: $arg" >&2
+      exit 2 ;;
+  esac
+done
+
+check_deps() {
+  local missing=()
+  command -v sox >/dev/null 2>&1 || missing+=("sox")
+  if ! command -v whisper-cli >/dev/null 2>&1 \
+     && ! command -v whisper >/dev/null 2>&1 \
+     && ! command -v main >/dev/null 2>&1; then
+    missing+=("whisper.cpp (whisper-cli)")
+  fi
+  if (( ${#missing[@]} > 0 )); then
+    echo "error: missing dependencies: ${missing[*]}" >&2
+    echo "  macOS:  brew install sox whisper-cpp" >&2
+    echo "  Debian: apt-get install sox  (whisper.cpp must be built from source)" >&2
+    return 1
+  fi
+  return 0
+}
+
+if (( CHECK_ONLY )); then
+  if check_deps; then
+    echo "OK"
+    exit 0
+  else
+    exit 1
+  fi
+fi
+
+check_deps || exit 1
+
+WAV="$(bash "$LIB/record.sh")"
+trap 'rm -f "$WAV" "${WAV%.wav}.txt"' EXIT
+
+echo "🧠 Transcribing locally..." >&2
+TRANSCRIPT="$(bash "$LIB/transcribe.sh" "$WAV")"
+
+if [[ -z "${TRANSCRIPT// }" ]]; then
+  echo "error: empty transcript." >&2
+  exit 1
+fi
+
+printf '%s\n' "$TRANSCRIPT"
+
+if (( USE_CLIPBOARD )); then
+  if printf '%s' "$TRANSCRIPT" | bash "$LIB/clipboard.sh" 2>/dev/null; then
+    echo "✓ Copied to clipboard." >&2
+  fi
+fi

@@ -1,0 +1,11 @@
+{
+  "name": "voice-dictation",
+  "description": "Local-only voice dictation for Claude Code users authenticated with an API key, Bedrock, Vertex, or Foundry. Records via sox, transcribes via whisper.cpp.",
+  "version": "0.1.0",
+  "author": {
+    "name": "voice-dictation-plugin"
+  },
+  "homepage": "",
+  "repository": "",
+  "license": "MIT"
+}

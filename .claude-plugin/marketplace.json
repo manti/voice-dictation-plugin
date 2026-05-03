@@ -1,0 +1,16 @@
+{
+  "name": "voice-dictation-plugin",
+  "description": "Local-only voice dictation for API-key Claude Code users.",
+  "owner": {
+    "name": "voice-dictation-plugin"
+  },
+  "plugins": [
+    {
+      "name": "voice-dictation",
+      "source": "./",
+      "description": "Record with sox, transcribe locally with whisper.cpp, hand the transcript back via clipboard or a slash command.",
+      "category": "input",
+      "keywords": ["voice", "dictation", "speech-to-text", "whisper", "api-key"]
+    }
+  ]
+}
