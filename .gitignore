@@ -1,0 +1,4 @@
+tests/fixture.wav
+tests/fixture.txt
+*.partial
+.DS_Store

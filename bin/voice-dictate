@@ -50,8 +50,10 @@ check_deps() {
   fi
   if (( ${#missing[@]} > 0 )); then
     echo "error: missing dependencies: ${missing[*]}" >&2
-    echo "  macOS:  brew install sox whisper-cpp" >&2
-    echo "  Debian: apt-get install sox  (whisper.cpp must be built from source)" >&2
+    echo "" >&2
+    echo "Install everything in one shot:" >&2
+    echo "  bash \"$ROOT/scripts/bootstrap.sh\"" >&2
+    echo "  # or, inside Claude Code:  /voice-dictation:install" >&2
     return 1
   fi
   return 0

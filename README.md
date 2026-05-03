@@ -14,60 +14,53 @@ Records from your microphone with `sox`, transcribes locally with `whisper.cpp`,
 
 The closest a plugin can get to "insert without submit" is the **clipboard handoff** workflow below.
 
-## Prerequisites
+## Quickstart (3 commands)
 
-```bash
-# macOS
-brew install sox whisper-cpp
+Inside Claude Code:
 
-# Debian / Ubuntu
-sudo apt-get install sox xclip
-# whisper.cpp must be built from source: https://github.com/ggerganov/whisper.cpp
+```
+/plugin marketplace add manti/voice-dictation-plugin
+/plugin install voice-dictation@voice-dictation-plugin
+/voice-dictation:install
 ```
 
-Download a whisper model (one-time):
+`/voice-dictation:install` is a one-shot bootstrap that installs `sox`, `whisper-cpp`, downloads `ggml-base.en.bin` (~141 MB), and adds `voice-dictate` to your shell PATH. Idempotent — safe to re-run.
+
+Then dictate:
+
+```
+/voice-dictation:speak                 # auto-submit transcript as your prompt
+voice-dictate                          # in another terminal: transcript → clipboard
+```
+
+> macOS users: grant your terminal microphone access at System Settings → Privacy & Security → Microphone the first time you record.
+
+## What the bootstrap does on each platform
+
+| | sox | whisper.cpp | model | shell PATH |
+|---|---|---|---|---|
+| **macOS** (Homebrew required) | `brew install sox` | `brew install whisper-cpp` | `curl` to `~/.cache/whisper.cpp/` | appends to `~/.zshrc` / `~/.bashrc` |
+| **Debian/Ubuntu** | `sudo apt-get install -y sox` | prints build-from-source instructions | `curl` to `~/.cache/whisper.cpp/` | appends to shell rc |
+| **Other Linux / Windows** | manual install required | manual install required | `curl` works | manual |
+
+If you'd rather install manually:
 
 ```bash
+brew install sox whisper-cpp
 mkdir -p ~/.cache/whisper.cpp
 curl -L -o ~/.cache/whisper.cpp/ggml-base.en.bin \
   https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin
 ```
 
-`base.en` is a good default (~150 MB, English-only). Use `ggml-base.bin` for multilingual, or `small`/`medium` for higher quality.
-
-Grant your terminal microphone access (macOS: System Settings → Privacy & Security → Microphone).
-
-## Install
-
-### Via the plugin marketplace (recommended)
-
-This repo doubles as its own marketplace. From inside Claude Code:
-
-```
-/plugin marketplace add <your-github-user>/voice-dictation-plugin
-/plugin install voice-dictation@voice-dictation-plugin
-```
-
-Updates: every push to `main` is a new version (no `version` is pinned in `plugin.json`), so users get changes automatically. Run `/plugin marketplace update` to refresh manually.
+## Alternative install paths
 
 ### Via `--plugin-dir` (for local development)
 
 ```bash
-git clone https://github.com/<your-github-user>/voice-dictation-plugin ~/voice-dictation-plugin
+git clone https://github.com/manti/voice-dictation-plugin ~/voice-dictation-plugin
 claude --plugin-dir ~/voice-dictation-plugin
+bash ~/voice-dictation-plugin/scripts/bootstrap.sh
 ```
-
-### Add the CLI to your shell PATH (Workflow A)
-
-Required for the clipboard-handoff workflow:
-
-```bash
-bash ~/voice-dictation-plugin/scripts/install-alias.sh
-# open a new terminal, then:
-voice-dictate --check
-```
-
-> If you installed via `/plugin install`, the cached path is `~/.claude/plugins/cache/voice-dictation-plugin/voice-dictation/<version>/scripts/install-alias.sh`. Easier: just clone the repo separately for the alias.
 
 ## Workflow A — clipboard handoff (insert without submit)
 
@@ -128,12 +121,16 @@ voice-dictation-plugin/
 │   ├── plugin.json              plugin manifest
 │   └── marketplace.json         marketplace catalog (this repo is its own marketplace)
 ├── bin/voice-dictate            CLI used by both workflows
-├── commands/speak.md            /voice-dictation:speak slash command (Workflow B)
+├── commands/
+│   ├── install.md               /voice-dictation:install — one-shot bootstrap
+│   └── speak.md                 /voice-dictation:speak — record + submit transcript
 ├── lib/
 │   ├── record.sh                sox VAD recorder
 │   ├── transcribe.sh            whisper.cpp wrapper
 │   └── clipboard.sh             cross-platform copy
-├── scripts/install-alias.sh     adds bin/ to user shell PATH
+├── scripts/
+│   ├── bootstrap.sh             installs deps + model + PATH (idempotent)
+│   └── install-alias.sh         adds bin/ to user shell PATH
 └── tests/smoke.sh               syntax + manifest + pipeline checks
 ```
 
